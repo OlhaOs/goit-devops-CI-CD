@@ -22,7 +22,7 @@ resource "aws_subnet" "public" {
 
     "kubernetes.io/role/elb"                     = "1"
   
-    "kubernetes.io/cluster/lesson-7-eks-cluster" = "shared"
+    "kubernetes.io/cluster/lesson-8-eks-cluster" = "shared"
   }
 }
 
@@ -38,7 +38,7 @@ resource "aws_subnet" "private" {
     
     "kubernetes.io/role/internal-elb"            = "1"
   
-    "kubernetes.io/cluster/lesson-7-eks-cluster" = "shared"
+    "kubernetes.io/cluster/lesson-8-eks-cluster" = "shared"
   }
 }
 

@@ -1,6 +1,6 @@
 applications:
-  - name: example-app
-    namespace: default
+  - name: django-app
+    namespace: argocd
     project: default
     source:
       repoURL: ${github_url}
@@ -11,17 +11,18 @@ applications:
           - values.yaml
     destination:
       server: https://kubernetes.default.svc
-      namespace: default
+      namespace: jenkins
     syncPolicy:
       automated:
         prune: true
         selfHeal: true
 
 repositories:
-  - name: example-app
+  - name: django-app-repo
     url: ${github_url}
     username: ${github_username}
     password: ${github_pat}
+    type: git
 
 repoConfig:
   insecure: "true"

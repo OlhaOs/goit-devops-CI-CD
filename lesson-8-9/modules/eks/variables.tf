@@ -5,7 +5,7 @@ variable "region" {
 
 variable "cluster_name" {
   description = "Name of the EKS cluster"
-  default     = "lesson-7-eks-cluster"
+  default     = "lesson-8-eks-cluster"
 }
 
 variable "subnet_ids" {
@@ -20,7 +20,7 @@ variable "node_group_name" {
 
 variable "instance_type" {
   description = "EC2 instance type for the worker nodes"
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 variable "desired_size" {

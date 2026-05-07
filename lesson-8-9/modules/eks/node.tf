@@ -38,30 +38,32 @@ resource "aws_iam_role_policy_attachment" "amazon_ec2_container_registry_read_on
   role       = aws_iam_role.nodes.name
 }
 
-# Створення Node Group для EKS
+# ДОДАНО: Прив'язка політики для ПУШУ в Amazon ECR (необхідно для Jenkins)
+resource "aws_iam_role_policy_attachment" "amazon_ec2_container_registry_power_user" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+  role       = aws_iam_role.nodes.name
+}
+
 resource "aws_eks_node_group" "general" {
-  # Ім'я EKS-кластера
-  cluster_name = aws_eks_cluster.eks.name
-
-  # Ім'я групи вузлів
+  cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "general"
+  node_role_arn   = aws_iam_role.nodes.arn
+  subnet_ids      = var.subnet_ids
 
-  # IAM-роль для вузлів
-  node_role_arn = aws_iam_role.nodes.arn
-
-  # Підмережі, де будуть EC2-вузли
-  subnet_ids = var.subnet_ids
-
-  # Тип EC2-інстансів для вузлів
   capacity_type  = "ON_DEMAND"
   instance_types = ["${var.instance_type}"]
 
-  # Конфігурація масштабування
-  scaling_config {
-    desired_size = var.desired_size # Бажана кількість вузлів
-    max_size     = var.max_size     # Максимальна кількість вузлів
-    min_size     = var.min_size     # Мінімальна кількість вузлів
+  launch_template {
+    name    = aws_launch_template.eks_nodes.name
+    version = aws_launch_template.eks_nodes.latest_version
   }
+
+  scaling_config {
+    desired_size = var.desired_size
+    max_size     = var.max_size
+    min_size     = var.min_size
+  }
+
 
   # Конфігурація оновлення вузлів
   update_config {
@@ -78,11 +80,20 @@ resource "aws_eks_node_group" "general" {
     aws_iam_role_policy_attachment.amazon_eks_worker_node_policy,
     aws_iam_role_policy_attachment.amazon_eks_cni_policy,
     aws_iam_role_policy_attachment.amazon_ec2_container_registry_read_only,
+    aws_iam_role_policy_attachment.amazon_ec2_container_registry_power_user, 
   ]
 
-  # Ігнорує зміни в desired_size, щоб уникнути конфліктів
+
   lifecycle {
     ignore_changes = [scaling_config[0].desired_size]
   }
 }
+resource "aws_launch_template" "eks_nodes" {
+  name = "eks-nodes-metadata-fix"
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional" 
+    http_put_response_hop_limit = 2          
+  }
+}

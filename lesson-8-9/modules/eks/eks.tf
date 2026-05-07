@@ -1,4 +1,3 @@
-# IAM-роль для EKS-кластера
 resource "aws_iam_role" "eks" {
   name = "${var.cluster_name}-eks-cluster"
 
@@ -18,13 +17,11 @@ resource "aws_iam_role" "eks" {
 POLICY
 }
 
-# Прив'язка IAM-ролі до політики AmazonEKSClusterPolicy
 resource "aws_iam_role_policy_attachment" "eks" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.eks.name
 }
 
-# Створення EKS-кластера
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks.arn
@@ -36,4 +33,14 @@ resource "aws_eks_cluster" "eks" {
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks]
+}
+
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.eks.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.eks.identity[0].oidc[0].issuer
 }

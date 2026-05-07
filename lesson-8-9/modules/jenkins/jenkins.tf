@@ -4,6 +4,39 @@ resource "kubernetes_namespace" "jenkins" {
   }
 }
 
+resource "aws_iam_role" "ebs_csi_driver_role" {
+  name = "${var.cluster_name}-ebs-csi-driver-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Federated = var.oidc_provider_arn
+        },
+        Action = "sts:AssumeRoleWithWebIdentity",
+        Condition = {
+          StringEquals = {
+            "${replace(var.oidc_provider_url, "https://", "")}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.ebs_csi_driver_role.name
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = var.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = aws_iam_role.ebs_csi_driver_role.arn
+}
+
 resource "kubernetes_storage_class_v1" "ebs_sc" {
   metadata {
     name = "ebs-sc"
@@ -13,13 +46,14 @@ resource "kubernetes_storage_class_v1" "ebs_sc" {
   }
 
   storage_provisioner = "ebs.csi.aws.com"
-
   reclaim_policy      = "Delete"
   volume_binding_mode = "WaitForFirstConsumer"
 
   parameters = {
     type = "gp3"
   }
+
+  depends_on = [aws_eks_addon.ebs_csi]
 }
 
 resource "aws_iam_role" "jenkins_kaniko_role" {
@@ -83,7 +117,7 @@ resource "helm_release" "jenkins" {
   repository = "https://charts.jenkins.io"
   chart      = "jenkins"
   namespace  = kubernetes_namespace.jenkins.metadata[0].name
-  version    = "4.9.2"
+  version    = "5.7.2"
 
   depends_on = [
     kubernetes_storage_class_v1.ebs_sc,
@@ -97,19 +131,8 @@ resource "helm_release" "jenkins" {
       github_pat             = var.github_pat
       github_url             = var.github_url
       github_main_branch     = var.github_main_branch
-    }),
-    yamlencode({
-      controller = {
-        installPlugins = false
-        runAsUser      = 0
-        fsGroup        = 0
-      }
-      persistence = {
-        enabled        = true
-        mountWhiteList = true
-      }
     })
   ]
-
+  wait = false
   timeout = 900
 }
