@@ -1,373 +1,92 @@
-# Lesson 7 - Terraform Infrastructure with EKS
+Lesson 8-9 - CI/CD Automation with Jenkins & Argo CD (GitOps)
+Цей проєкт демонструє повний цикл автоматизації інфраструктури та розгортання додатків (GitOps). Ми використовуємо Terraform для створення AWS EKS кластера, Jenkins для автоматизації збірки (CI) та Argo CD для декларативного розгортання в Kubernetes (CD).
 
-Цей проєкт демонструє інфраструктуру AWS, розгорнуту за допомогою Terraform з використанням модульної архітектури. Включає створення Kubernetes кластера (EKS) та автоматичне розгортання Django-додатку через Helm.
-
-## Команди для роботи з проєктом
-
-### Ініціалізація Terraform
-
-Перед початком роботи необхідно ініціалізувати Terraform та завантажити необхідні провайдери:
-
-```bash
+Команди для роботи з інфраструктурою
+Ініціалізація Terraform
+Bash
 terraform init
-```
+Команда завантажує провайдери AWS, Kubernetes, Helm та ініціалізує модулі.
 
-Команда:
-
-- Завантажує провайдер AWS
-- Ініціалізує модулі
-- Підготовлює робоче середовище
-
-### Перегляд змін
-
-Щоб подивитися, які зміни будуть застосовані до інфраструктури:
-
-```bash
+Перегляд та застосування змін
+Bash
 terraform plan
-```
-
-Команда показує план змін без їх застосування, що дозволяє перевірити конфігурацію перед розгортанням.
-
-### Застосування змін
-
-Для створення або оновлення інфраструктури виконайте:
-
-```bash
 terraform apply
-```
+Terraform створить VPC, ECR, EKS кластер, а також автоматично встановить Jenkins та Argo CD за допомогою Helm-чартів.
 
-Terraform запитає підтвердження перед застосуванням змін.
+Автоматизація CI/CD
+1. Перевірка Jenkins (CI Pipeline)
+Jenkins відповідає за збірку Docker-образу та оновлення конфігурації.
 
-### Видалення інфраструктури
+Як зайти: Отримай URL сервісу Jenkins через kubectl get svc -n jenkins.
 
-Для видалення всіх ресурсів:
+Логін: admin, Пароль: той, що вказаний у твоїх змінних Terraform.
 
-```bash
+Що перевірити:
+
+Зайди в Pipeline django-app-pipeline.
+
+Переконайся, що стадія Build and Push успішно відправила образ в ECR.
+
+Стадія Update Manifest має автоматично змінити тег образу (image.tag) у твоєму GitHub репозиторії в гілці lesson-8-9.
+
+2. Перегляд результату в Argo CD (GitOps)
+Argo CD синхронізує стан твого кластера з кодом у GitHub.
+
+Як зайти: Отримай URL через kubectl get svc -n argocd.
+
+Що перевірити:
+
+У консолі Argo CD ти побачиш застосунок django-app.
+
+Статус Synced означає, що Argo CD побачив новий тег у GitHub і розгорнув його.
+
+Статус Healthy означає, що поди Django успішно запущені.
+
+Опис модулів
+1. Модуль vpc
+Створює мережеву інфраструктуру: 3 публічні та 3 приватні підмережі в різних зонах доступності для високої відмовостійкості.
+
+2. Модуль ecr
+Створює приватний реєстр django-app для зберігання версій твого додатку.
+
+3. Модуль eks
+Створює керований Kubernetes кластер. Включає Node Group на базі t3.small інстансів з автоматичним масштабуванням (від 2 до 6 нод).
+
+4. Модуль jenkins
+Встановлює Jenkins у кластер. Налаштовує Pipeline, який інтегрований з GitHub через Personal Access Token (PAT).
+
+5. Модуль argo_cd
+Розгортає Argo CD та створює об'єкт Application, який стежить за папкою charts/django-app у твоєму репозиторії.
+
+Робота з Kubernetes та Перевірка
+Налаштування доступу
+Після створення кластера онови свій kubeconfig:
+
+Bash
+aws eks --region us-west-2 update-kubeconfig --name lesson-8-eks-cluster
+Перевірка статусів розгортання
+Bash
+# Перевірити статус Argo CD додатків
+kubectl get applications -n argocd
+
+# Перевірити поди додатку Django
+kubectl get pods -n jenkins
+
+# Переглянути логи Argo CD (якщо виникли проблеми)
+kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller
+Корисні команди Helm
+Bash
+# Переглянути всі встановлені інструменти (Argo, Jenkins, Apps)
+helm list -A
+Порядок розгортання проєкту
+Застосування Terraform: Створює всю інфраструктуру та софт.
+
+Запуск Jenkins Job: Відбувається автоматично при пуші в GitHub або вручну для створення Docker-образу.
+
+Синхронізація Argo CD: Як тільки Jenkins оновить тег у Git, Argo CD миттєво оновить додаток у кластері.
+
+Результат: Додаток доступний у кластері з актуальною версією коду.
+
+Очищення ресурсів
+Bash
 terraform destroy
-```
-
-## Опис модулів
-
-### 1. Модуль `s3-backend`
-
-**Призначення:** Створення інфраструктури для віддаленого зберігання стану Terraform.
-
-**Що створює:**
-
-- **S3 бакет** - для зберігання файлу стану Terraform (`terraform.tfstate`)
-  - Увімкнено версіонування для збереження історії змін
-  - Налаштовано контроль власності об'єктів
-  - Шифрування даних
-- **DynamoDB таблиця** - для блокування стану під час одночасної роботи (state locking)
-  - Режим оплати: "PAY_PER_REQUEST"
-  - Hash key: "LockID"
-
-**Вхідні параметри:**
-
-- `bucket_name` - назва S3 бакета
-- `table_name` - назва таблиці DynamoDB
-
-**Вивід:**
-
-- `s3_bucket_name` - назва створеного S3 бакета
-- `dynamodb_table_name` - назва створеної таблиці DynamoDB
-
-Цей модуль дозволяє зберігати стан Terraform у хмарі для збереження архітектури
-
----
-
-### 2. Модуль `vpc`
-
-**Призначення:** Створення віртуальної приватної мережі (VPC) та мережевої інфраструктури в AWS.
-
-**Що створює:**
-
-- **VPC (Virtual Private Cloud)** - ізольована мережа в AWS
-- **Публічні підмережі (Public Subnets)** - 3 підмережі в різних зонах доступності
-- **Приватні підмережі (Private Subnets)** - 3 підмережі в різних зонах доступності
-- **Internet Gateway** - шлюз для виходу в інтернет
-- **Route Tables** - таблиці маршрутизації для публічних підмереж
-
-**Вхідні параметри:**
-
-- `vpc_cidr_block` - CIDR блок для VPC (наприклад, "10.0.0.0/16")
-- `public_subnets` - список CIDR блоків для публічних підмереж
-- `private_subnets` - список CIDR блоків для приватних підмереж
-- `availability_zones` - список зон доступності
-- `vpc_name` - ім'я VPC
-
-VPC забезпечує ізоляцію мережі та контроль над трафіком:
-
-- Публічні підмережі - для веб-серверів, балансувальників навантаження
-- Приватні підмережі - для баз даних, бекенд-сервісів
-
-### 3. Модуль `ecr`
-
-Створення репозиторію Amazon ECR (Elastic Container Registry) для зберігання Docker-образів.
-
-**Що створює:**
-
-- **ECR Repository** - репозиторій для Docker-образів
-  - Змінні теги образів (MUTABLE)
-  - Автоматичне сканування на вразливості при завантаженні образів
-  - Шифрування AES256
-- **Repository Policy** - політика доступу до репозиторію
-  - Дозволи на pull та push образів
-  - Перегляд та опис образів
-
-**Вхідні параметри:**
-
-- `ecr_name` - назва репозиторію ECR
-- `scan_on_push` - увімкнути/вимкнути автоматичне сканування образів (true/false)
-
-**Вивід:**
-
-- `ecr_repository_url` - URL репозиторію для push/pull образів
-- `ecr_repository_arn` - ARN репозиторію
-- `ecr_repository_name` - ім'я репозиторію
-
-ECR - це приватний реєстр Docker-образів від AWS
-
-### 4. Модуль `eks`
-
-Створення керованого Kubernetes кластера (Amazon EKS) з групою worker nodes.
-
-**Що створює:**
-
-- **IAM-роль для EKS кластера** - роль з необхідними дозволами для управління кластером
-- **EKS Cluster** - керований Kubernetes кластер
-- **IAM-роль для Worker Nodes** - роль для EC2-інстансів (воркерів)
-- **Node Group** - група EC2-інстансів для запуску контейнерів
-  - Автоматичне масштабування (min/max/desired size)
-
-**Вхідні параметри:**
-
-- `cluster_name` - назва EKS кластера
-- `subnet_ids` - список ID підмереж для розгортання кластера
-- `instance_type` - тип EC2-інстансів для worker nodes (наприклад, "t3.small")
-- `desired_size` - бажана кількість worker nodes
-- `max_size` - максимальна кількість worker nodes
-- `min_size` - мінімальна кількість worker nodes
-
-**Вивід:**
-
-- `eks_cluster_endpoint` - API endpoint для підключення до кластера
-- `eks_cluster_name` - назва EKS кластера
-- `eks_node_role_arn` - ARN IAM-ролі для worker nodes
-
-**Навіщо потрібен:** EKS дозволяє запускати контейнеризовані додатки в керованому Kubernetes кластері.
-
----
-
-## Helm Chart - Django App
-
-**Призначення:** Розгортання Django-додатку в Kubernetes кластері через Helm.
-
-**Що включає:**
-
-- **Deployment** - визначає, як запускати Django-додаток
-  - Автоматичне підтягування образу з ECR
-  - Використання ConfigMap для змінних оточення
-  - Налаштування ресурсів (CPU, Memory)
-- **Service** - забезпечує мережевий доступ до подів
-- **ConfigMap** - зберігає конфігурацію додатку
-  - Змінні оточення для PostgreSQL
-  - Змінні оточення для Django
-- **HorizontalPodAutoscaler** - автоматичне масштабування при навантаженні
-
-**Конфігурація (values.yaml):**
-
-- `image.repository` - URL ECR репозиторію (встановлюється Terraform автоматично)
-- `image.tag` - тег Docker-образу (за замовчуванням: latest)
-- `service.port` - порт сервісу (8000)
-- `config.*` - змінні оточення для Django
-
----
-
-## Налаштування
-
-У файлі `backend.tf` міститься закоментована конфігурація віддаленого бекенду. Після створення S3 бакета та DynamoDB таблиці за допомогою модуля `s3-backend`, розкоментуйте конфігурацію для використання віддаленого зберігання стану:
-
-
-## Команди для встановлення Helm-релізу:
-
-helm upgrade --install django-app ./charts/django-app \
-  --namespace default \
-  --set image.repository=$(terraform output -raw ecr_repository_url) \
-  --set image.tag=v1.0.1
-
-## Пояснення:
-
-helm upgrade --install — створює або оновлює реліз.
-./charts/django-app — шлях до Helm-чарту з твоїм Django-додатком.
---namespace default — namespace для розгортання.
---set image.repository=... — передає URL ECR репозиторію з Terraform.
---set image.tag=... — вказує тег образу Docker (наприклад, v1.0.1).
-
-
-## Вивід проєкту
-
-Після успішного застосування конфігурації, Terraform виведе наступну інформацію:
-
-**S3 Backend:**
-
-- `s3_bucket_name` - назва S3 бакета для зберігання стану
-- `dynamodb_table_name` - назва таблиці DynamoDB для блокувань
-
-**ECR:**
-
-- `ecr_repository_url` - URL для роботи з ECR репозиторієм
-- `ecr_repository_arn` - ARN ECR репозиторію
-- `ecr_repository_name` - ім'я ECR репозиторію
-
-**EKS:**
-
-- `eks_cluster_endpoint` - API endpoint для підключення до кластера
-- `eks_cluster_name` - назва EKS кластера
-- `eks_node_role_arn` - ARN IAM-ролі для worker nodes
-
-## Додаткові команди
-
-### Перегляд поточного стану
-
-```bash
-terraform show
-```
-
-### Перегляд виходів
-
-```bash
-terraform output
-```
-
-### Форматування коду
-
-```bash
-terraform fmt
-```
-
-### Валідація конфігурації
-
-```bash
-terraform validate
-```
-
-## Робота з EKS та Kubernetes
-
-### Налаштування kubectl для підключення до EKS
-
-Після створення EKS кластера, налаштуйте kubectl для підключення:
-
-```bash
-aws eks --region us-west-2 update-kubeconfig --name lesson-7-eks-cluster
-```
-
-### Перевірка статусу кластера
-
-```bash
-kubectl cluster-info
-kubectl get nodes
-```
-
-### Перегляд розгорнутих ресурсів
-
-```bash
-# Переглянути деплойменти
-kubectl get deployments
-
-# Переглянути поди
-kubectl get pods
-
-# Переглянути сервіси
-kubectl get services
-
-# Переглянути HPA
-kubectl get hpa
-```
-
-### Перегляд логів Django-додатку
-
-```bash
-# Отримати назву пода
-kubectl get pods
-
-# Переглянути логи
-kubectl logs <pod-name>
-
-# Переглянути логи в реальному часі
-kubectl logs -f <pod-name>
-```
-
-### Робота з Helm
-
-```bash
-# Переглянути встановлені Helm релізи
-helm list
-
-# Оновити Helm чарт після змін
-helm upgrade django-app ./charts/django-app
-
-# Видалити Helm реліз
-helm uninstall django-app
-```
-
-### Масштабування додатку вручну
-
-```bash
-# Змінити кількість реплік
-kubectl scale deployment django-app --replicas=3
-
-# Переглянути статус HPA
-kubectl get hpa django-app
-```
-
-## Порядок розгортання проєкту
-
-1. **Ініціалізація Terraform:**
-
-   ```bash
-   terraform init
-   ```
-
-2. **Перегляд та застосування змін:**
-
-   ```bash
-   terraform plan
-   terraform apply
-   ```
-
-3. **Налаштування kubectl:**
-
-   ```bash
-   aws eks --region us-west-2 update-kubeconfig --name lesson-7-eks-cluster
-
-4. **Завантаження Docker-образу до ECR:**
-
-   # Перейти в проєкт з Dockerfile образу django-app
-
-   ```bash
-   # Отримати URL репозиторію
-   ECR_URL=$(terraform output -raw ecr_repository_url)
-
-   # Авторизація в ECR
-   aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $ECR_URL
-
-   # Білд та push образу
-   docker build
-   docker tag 
-   docker push 
-   ```
-
-5. **Перевірка розгортання:**
-   ```bash
-   kubectl get all
-   kubectl get hpa
-   ```
-
-## Очищення ресурсів
-
-Для видалення всіх створених ресурсів:
-
-```bash
-terraform destroy
-```
