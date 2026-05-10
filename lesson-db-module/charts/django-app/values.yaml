@@ -14,11 +14,11 @@ ingress:
   enabled: false
 
 config:
-  POSTGRES_HOST: db
-  POSTGRES_PORT: 5432
-  POSTGRES_USER: django_user
-  POSTGRES_DB: django_db
-  POSTGRES_PASSWORD: admin
+  db_host: "olga-db.cxqkcoao20z1.us-west-2.rds.amazonaws.com"
+  db_port: "5432"
+  db_name: "myappdb"
+  db_user: "dbadmin"
+  db_pass: "dbadmin123"
 
 hpa:
   minReplicas: 2
