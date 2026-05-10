@@ -28,6 +28,9 @@ resource "helm_release" "argo_apps" {
       github_pat         = var.github_pat
       github_main_branch = var.github_main_branch
       helm_chart_path    = var.helm_chart_path
+      db_name            = var.db_name       
+      db_user            = var.db_user       
+      db_password        = var.db_password   
     })
   ]
   depends_on = [helm_release.argo_cd]

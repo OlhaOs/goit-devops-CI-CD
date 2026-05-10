@@ -73,6 +73,9 @@ module "argo_cd" {
   github_url         = var.github_tf_url
   github_main_branch = var.github_tf_branch
   helm_chart_path    = var.helm_chart_path
+  db_name            = var.db_name
+  db_user            = var.db_user
+  db_password        = var.db_password
   depends_on         = [module.eks]
 }
 

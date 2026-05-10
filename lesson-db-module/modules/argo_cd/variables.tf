@@ -43,3 +43,6 @@ variable "helm_chart_path" {
   type        = string
   default     = "charts/django-app"
 }
+variable "db_name" { type = string }
+variable "db_user" { type = string }
+variable "db_password" { type = string }
