@@ -51,7 +51,7 @@ applications:
     source:
       repoURL: ${github_url}
       path: ${helm_chart_path}
-      targetRevision: ${github_main_branch}
+      targetRevision: ${github_tf_branch}
       helm:
         valueFiles:
           - values.yaml
