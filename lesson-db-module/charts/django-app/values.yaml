@@ -2,7 +2,7 @@ namespace: default
 
 image:
   repository: 482745810990.dkr.ecr.us-west-2.amazonaws.com/django-app
-  tag: 3
+  tag: 1
   pullPolicy: Always
   
 
