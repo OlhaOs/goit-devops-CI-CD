@@ -93,6 +93,33 @@ instance_class (string): Потужність інстансу (напр. db.t3.
 
 db_name, db_user, db_pass: Параметри доступу до бази даних.
 
+Як змінювати конфігурацію бази даних
+Усі налаштування виконуються через вхідні змінні (variables) при виклику модуля в main.tf. Вам не потрібно змінювати код усередині папки modules/rds.
+
+1. Зміна типу бази даних (RDS vs Aurora)
+За це відповідає булева змінна use_aurora:
+
+Встановіть use_aurora = true, якщо потрібен Aurora Cluster.
+
+Встановіть use_aurora = false, якщо потрібен звичайний RDS Instance.
+
+2. Зміна двигуна (Engine)
+Використовуйте змінну engine. Зверніть увагу, що назви двигунів для Aurora та RDS відрізняються:
+
+Для RDS: "postgres", "mysql", "mariadb".
+
+Для Aurora: "aurora-postgresql", "aurora-mysql".
+
+3. Клас потужності (Instance Class)
+Змінна instance_class визначає обсяг CPU та RAM:
+
+Для тестів: "db.t3.micro" або "db.t3.small".
+
+Для продакшну: "db.t3.medium" або вище.
+
+4. Версія двигуна
+Змінна engine_version повинна відповідати обраному двигуну (наприклад, "15.4" для PostgreSQL).
+
 Робота з Kubernetes та Перевірка
 Налаштування доступу
 Після створення кластера онови свій kubeconfig:
