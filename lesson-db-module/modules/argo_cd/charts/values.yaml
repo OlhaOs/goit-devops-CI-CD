@@ -9,7 +9,6 @@ applications:
       helm:
         valueFiles:
           - values.yaml
-        # Додаємо параметри, які перекриють стандартні налаштування в Helm-чарті
         values: |
           config:
             db_host: "olga-db.cxqkcoao20z1.us-west-2.rds.amazonaws.com"
