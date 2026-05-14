@@ -1,0 +1,28 @@
+namespace: default
+
+image:
+  repository: 482745810990.dkr.ecr.us-west-2.amazonaws.com/django-app
+  tag: 1
+  pullPolicy: Always
+  
+
+service:
+  type: LoadBalancer
+  port: 8000
+
+ingress:
+  enabled: false
+
+config:
+  db_host: "olga-db.cxqkcoao20z1.us-west-2.rds.amazonaws.com"
+  db_port: "5432"
+  db_name: "myappdb"
+  db_user: "dbadmin"
+  db_pass: "dbadmin123"
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 6
+  averageUtilization: 70
+
+replicaCount: 2

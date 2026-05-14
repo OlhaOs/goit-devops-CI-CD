@@ -1,0 +1,66 @@
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: ["sleep"]
+    args: ["9999999"]
+  - name: git
+    image: alpine/git
+    command: ["sleep"]
+    args: ["9999999"]
+"""
+        }
+    }
+    environment {
+  
+        ECR_REPO = "482745810990.dkr.ecr.us-west-2.amazonaws.com/django-app"
+   
+        TARGET_BRANCH = "final-project" 
+    }
+    stages {
+        stage('Build and Push to ECR') {
+            steps {
+                container('kaniko') {
+                    sh """
+                        mkdir -p /kaniko/.docker
+                        echo '{"credsStore":"ecr-login"}' > /kaniko/.docker/config.json
+                        
+                        # КонтекстWORKSPACE вказує на папку Django, де лежить Dockerfile
+                        /kaniko/executor --context ${WORKSPACE} --dockerfile ${WORKSPACE}/Dockerfile --destination ${ECR_REPO}:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+        stage('Update Helm Tag in Git') {
+            steps {
+                container('git') {
+                    withCredentials([usernamePassword(credentialsId: 'github-token', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        sh """
+                            git config --global user.email "jenkins@example.com"
+                            git config --global user.name "Jenkins CI"
+                            
+                            rm -rf infra-repo
+                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/OlhaOs/goit-devops-CI-CD.git infra-repo
+                            
+                            cd infra-repo
+                            git checkout ${TARGET_BRANCH}
+                            
+                            # Оновлюємо шлях: тепер charts лежить у корені репозиторію, а не в lesson-8-9
+                            sed -i "s/tag: .*/tag: ${BUILD_NUMBER}/g" charts/django-app/values.yaml
+                            
+                            git add charts/django-app/values.yaml
+                            git commit -m "Update image tag to ${BUILD_NUMBER} [skip ci]"
+                            git push origin ${TARGET_BRANCH}
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
