@@ -23,7 +23,7 @@ provider "helm" {
 
 module "s3_backend" {
   source      = "./modules/s3-backend"
-  bucket_name = "lesson-8-terraform-state-unique-olga"
+  bucket_name = "final-project-terraform-state-unique-olga"
   table_name  = "terraform-locks"
 }
 
@@ -46,7 +46,7 @@ module "eks" {
   cluster_name  = "lesson-8-eks-cluster"
   subnet_ids    = module.vpc.private_subnets
   instance_type = "t3.small"
-  desired_size  = 2
+  desired_size  = 3
   max_size      = 6
   min_size      = 2
 }

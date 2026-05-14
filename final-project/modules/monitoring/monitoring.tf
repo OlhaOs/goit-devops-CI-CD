@@ -1,12 +1,10 @@
 resource "kubernetes_namespace" "monitoring" {
-  provider = kubernetes
   metadata {
     name = "monitoring"
   }
 }
 
 resource "helm_release" "prometheus" {
-  provider = helm
   name             = "prometheus"
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
@@ -23,10 +21,12 @@ resource "helm_release" "prometheus" {
   depends_on = [
     kubernetes_namespace.monitoring
   ]
+  
+  timeout = 300
+  wait    = false
 }
 
 data "kubernetes_secret" "grafana_password" {
-  provider  = kubernetes
   metadata {
     name      = "prometheus-grafana" 
     namespace = kubernetes_namespace.monitoring.metadata[0].name

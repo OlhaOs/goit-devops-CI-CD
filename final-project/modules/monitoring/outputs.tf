@@ -4,8 +4,8 @@ output "grafana_url" {
 }
 
 output "grafana_admin_password" {
-  description = "The hardcoded admin password for Grafana."
-  value       = "password123" 
+  description = "The admin password for Grafana."
+  value       = var.grafana_admin_password
   sensitive   = true
 }
 

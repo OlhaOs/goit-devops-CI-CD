@@ -1,16 +1,22 @@
 defaultRules:
   create: true
 
+alertmanager:
+  enabled: false
+
 grafana:
   enabled: true
   adminPassword: "${admin_password}"
   service:
     type: LoadBalancer
   persistence:
-    enabled: true
-    storageClassName: "gp2"
-    size: 5Gi
+    enabled: false
 
 prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
+    storageSpec: {}
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi

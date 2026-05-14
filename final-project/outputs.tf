@@ -49,3 +49,19 @@ output "dynamodb_table_name" {
 output "rds_hostname" {
   value = module.rds.rds_hostname
 }
+
+output "monitoring_grafana_url_command" {
+  description = "Команда для отримання адреси LoadBalancer Grafana після розгортання."
+  value       = module.monitoring.grafana_url
+}
+
+output "monitoring_grafana_admin_user" {
+  description = "Стандартне ім'я користувача для входу в панель керування Grafana."
+  value       = module.monitoring.grafana_admin_user
+}
+
+output "monitoring_grafana_admin_password" {
+  description = "Пароль адміністратора для Grafana (значення позначене як sensitive)."
+  value       = module.monitoring.grafana_admin_password
+  sensitive   = true
+}
